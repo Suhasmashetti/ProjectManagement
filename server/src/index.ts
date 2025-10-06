@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import projectRoutes from "./routes/projectsRoutes"
+import taskRoutes from "./routes/tasksRoutes"
 
 
 dotenv.config()
@@ -23,6 +24,7 @@ app.get("/", (req, res) => {
 })
 
 app.use("/Projects", projectRoutes)
+app.use("/Tasks", taskRoutes)
 
 
 const port = Number(process.env.PORT) || 3000;
