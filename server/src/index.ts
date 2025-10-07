@@ -4,6 +4,8 @@ import morgan from 'morgan';
 import helmet from 'helmet';
 import cors from 'cors';
 import bodyParser from 'body-parser';
+
+// {Route Imports}
 import projectRoutes from "./routes/projectsRoutes"
 import taskRoutes from "./routes/tasksRoutes"
 
@@ -23,13 +25,13 @@ app.get("/", (req, res) => {
     res.send("This is home route");
 })
 
-app.use("/Projects", projectRoutes)
-app.use("/Tasks", taskRoutes)
+app.use("/projects", projectRoutes)
+app.use("/tasks", taskRoutes)
 
 
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Server running on part ${port}`);
+  console.log(`Server running on port ${port}`);
 });
 
 
