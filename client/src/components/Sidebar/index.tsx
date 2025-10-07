@@ -3,13 +3,18 @@ import { useState } from "react";
 import Image from "next/image";
 import { AlertCircle, AlertOctagon, AlertTriangle, Briefcase, ChevronDown, ChevronUp, Home, Layers3, LockIcon, LucideIcon, Search, Settings, ShieldAlert, User, Users, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useAppDispatch, useAppSelector } from "../../redux";
+import { useAppDispatch, useAppSelector } from "../../app/redux";
 import Link from "next/link";
 import { setIsSidebarCollapsed } from "@/src/state";
+import { useGetProjectsQuery } from "@/src/state/api";
+
+
 
 const Sidebar = () => {
   const [showProjects, setShowProjects] = useState(true);
   const [showPriority, setShowPriority] = useState(true);
+
+  const {data: projects } = useGetProjectsQuery();
   const dispatch = useAppDispatch();
   const isSidebarCollapsed = useAppSelector(
     (state) => state.global.isSidebarCollapsed
@@ -39,7 +44,7 @@ const Sidebar = () => {
 
         {/* Team section */}
         <div className="flex items-center gap-5 border-y border-gray-200 px-8 py-4 dark:border-gray-700">
-          <Image src="/logo.svg" alt="logo" width={40} height={20} />
+          {/* <Image src="/file.svg" alt="logo" width={40} height={20} /> */}
           <div>
             <h3 className="text-md font-bold tracking-wide dark:text-gray-200">
               Suhas Team
@@ -60,6 +65,7 @@ const Sidebar = () => {
           <SidebarLink icon={User} label="Users" href="/user" />
           <SidebarLink icon={Users} label="Teams" href="/teams" />
         </nav>
+
         <button onClick={() => setShowProjects((prev) => !prev)}
             className="flex w-full items-center justify-between px-6 py-3 text-gray-500 dark:text-white">
                 <span className="">Projects</span>
@@ -69,6 +75,19 @@ const Sidebar = () => {
                     <ChevronDown className = "h-5 w-5"/>
                 )}
             </button>
+            
+            {/* {Projects Lists} */}
+            {showProjects &&
+            projects?.map((project) => (
+            <SidebarLink
+              key={project.id}
+              icon={Briefcase}
+              label={project.name}
+              href={`/projects/${project.id}`}
+            />
+            ))}
+
+            {/* {Priority Links} */}
             <button onClick={() => setShowPriority((prev) => !prev)}
             className="flex w-full items-center justify-between px-6 py-3 text-gray-500 dark:text-white">
                 <span className="">Priority</span>
@@ -79,14 +98,13 @@ const Sidebar = () => {
                 )}
             </button>
             {showPriority && (
-                <> 
-                <SidebarLink icon={AlertCircle} label="Urgent" href="/priority/urgent"/> 
-                <SidebarLink icon={ShieldAlert} label="High" href="/priority/high"/> 
-                <SidebarLink icon={AlertTriangle} label="Medium" href="/priority/medium"/> 
-                <SidebarLink icon={AlertOctagon} label="Low" href="/priority/low"/> 
-                <SidebarLink icon={Layers3} label="Urgent" href="/priority/backlog"/> 
-
-                </>
+            <> 
+            <SidebarLink icon={AlertCircle} label="Urgent" href="/priority/urgent"/> 
+            <SidebarLink icon={ShieldAlert} label="High" href="/priority/high"/> 
+            <SidebarLink icon={AlertTriangle} label="Medium" href="/priority/medium"/> 
+            <SidebarLink icon={AlertOctagon} label="Low" href="/priority/low"/> 
+            <SidebarLink icon={Layers3} label="Urgent" href="/priority/backlog"/> 
+            </>
             )}
       </div>
     </div>
