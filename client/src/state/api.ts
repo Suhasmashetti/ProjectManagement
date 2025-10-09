@@ -9,7 +9,7 @@ export interface Project {
     endDate?: string;
 }
 export enum Status {
-    ToDo = "TO DO",
+    ToDo = "To Do",
     WorkInProgress = "Work In Progress",
     UnderReview = "Under Review",
     Completed = "Completed",
@@ -66,6 +66,8 @@ export const api = createApi({
         getProjects: build.query<Project[], void>({
             query: () => 'projects',
             providesTags: ["Projects"],
+            // Add caching to reduce API calls
+            keepUnusedDataFor: 300, // Keep projects data for 5 minutes
         }),
         createProject: build.mutation<Project, Partial<Project>> ({
             query: (project) => ({
@@ -76,11 +78,13 @@ export const api = createApi({
             invalidatesTags: ["Projects"]
         }),
         getTasks: build.query<Task[], {projectId: number}>({
-            query: (projectId) => `tasks?projectId=${projectId}`,
+            query: ({projectId}) => `tasks?projectId=${projectId}`,
             providesTags: (result) => 
                 result 
                 ? result.map(({id}) => ({type: "Tasks" as const, id})) 
                 : [{ type: "Tasks" as const}],
+            // Add caching to reduce API calls
+            keepUnusedDataFor: 60, // Keep data for 60 seconds
         }),
         createTask: build.mutation<Task, Partial<Project>> ({
             query: (task) => ({
