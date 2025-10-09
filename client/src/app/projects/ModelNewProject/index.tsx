@@ -58,7 +58,7 @@ const ModalNewProject = ({ isOpen, onClose }: Props) => {
   };
 
   const inputStyles =
-    "w-full rounded border border-gray-300 p-2 shadow-sm transition focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed dark:border-dark-tertiary dark:bg-dark-tertiary dark:text-white";
+    "w-full rounded border border-gray-300 bg-white p-2 shadow-sm transition focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} name="Create New Project">
