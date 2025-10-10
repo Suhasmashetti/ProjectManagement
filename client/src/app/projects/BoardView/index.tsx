@@ -112,7 +112,7 @@ const TaskColumn = memo(({
     "To Do": "#2563EB",
     "Work In Progress": "#059669",
     "Under Review": "#D97706",
-    Completed: "#000000",
+    Completed: "#FFC0CB",
   };
 
   return (
@@ -237,10 +237,18 @@ const Task = memo(({ task }: TaskProps) => {
         transform: isDragging ? 'translateZ(0)' : undefined, // GPU acceleration
       }}
     >
-      {task.attachments && task.attachments.length > 0 && (
+      {task.attachments && task.attachments.length > 0 ? (
         <Image
-          // src={`https://pm-s3-images.s3.us-east-2.amazonaws.com/${task.attachments[0].fileUrl}`}
-          alt={task.attachments[0].fileName}
+          src={`/${task.id % 10 === 0 ? 'i10' : 'i' + (task.id % 10)}.jpg`}
+          alt={task.attachments[0]?.fileName || 'Task image'}
+          width={400}
+          height={200}
+          className="h-auto w-full rounded-t-md"
+        />
+      ) : (
+        <Image
+          src={`/i${(task.id % 10) + 1}.jpg`}
+          alt="Task image"
           width={400}
           height={200}
           className="h-auto w-full rounded-t-md"
@@ -280,21 +288,7 @@ const Task = memo(({ task }: TaskProps) => {
           {formattedStartDate && <span>{formattedStartDate} - </span>}
           {formattedDueDate && <span>{formattedDueDate}</span>}
         </div>
-        {/* Optimize task description rendering which was causing LCP issues */}
-        <p 
-          className="text-sm text-gray-600 dark:text-gray-300 leading-5"
-          style={{ 
-            contain: 'content', 
-            maxHeight: '3.75rem',  // Limit to 3 lines
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            fontDisplay: 'swap',
-            contentVisibility: 'auto',
-          }}
-        >
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           {task.description}
         </p>
         <div className="mt-4 border-t border-gray-200 dark:border-gray-700" />
@@ -305,8 +299,8 @@ const Task = memo(({ task }: TaskProps) => {
             {task.assignee && (
               <Image
                 key={task.assignee.userId}
-                // src={`https://pm-s3-images.s3.us-east-2.amazonaws.com/${task.assignee.profilePictureUrl!}`}
-                alt={task.assignee.username}
+                src={`/p${(task.assignee.userId || 1) % 13 === 0 ? 13 : (task.assignee.userId || 1) % 13}.jpeg`}
+                alt={task.assignee.username || 'User'}
                 width={30}
                 height={30}
                 className="h-8 w-8 rounded-full border-2 border-white object-cover dark:border-gray-800"
@@ -315,8 +309,8 @@ const Task = memo(({ task }: TaskProps) => {
             {task.author && (
               <Image
                 key={task.author.userId}
-                // src={`https://pm-s3-images.s3.us-east-2.amazonaws.com/${task.author.profilePictureUrl!}`}
-                alt={task.author.username}
+                src={`/p${(task.author.userId || 1) % 13 === 0 ? 13 : (task.author.userId || 1) % 13}.jpeg`}
+                alt={task.author.username || 'User'}
                 width={30}
                 height={30}
                 className="h-8 w-8 rounded-full border-2 border-white object-cover dark:border-gray-800"
