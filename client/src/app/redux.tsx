@@ -47,6 +47,9 @@ const persistConfig = {
   key: "root",
   storage,
   whitelist: ["global"],
+  // Add serialize check to prevent hydration issues
+  serialize: true,
+  debug: false,
 };
 const rootReducer = combineReducers({
   global: globalReducer,
