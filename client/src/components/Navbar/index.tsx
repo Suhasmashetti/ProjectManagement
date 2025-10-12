@@ -11,7 +11,7 @@ const Navbar = () => {
     );
     const isDarkMode = useAppSelector((state) => state.global.isDarkMode);
   return (
-    <div className='flex items-center justify-between bg-white px-4 py-3 dark:bg-black'>
+    <div className='flex items-center justify-between bg-white px-4 py-3 dark:bg-gray-800'>
       {/* Searchbar */}
       <div className='flex items-center gap-8'>
         {!isSidebarCollapsed ? null : ( 
@@ -46,7 +46,7 @@ const Navbar = () => {
         className={ 
           isDarkMode 
           ? 'h-min w-min rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-800'
-          : 'h-min w-min rounded p-2 hover:bg:gray-100'}
+          : 'h-min w-min rounded p-2 hover:bg-gray-100'}
           >
           <Settings className='h-5 w-6 cursor-pointer text-gray-600 dark:text-white' />
         </Link>

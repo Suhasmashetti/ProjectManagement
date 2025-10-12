@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { AlertCircle, AlertOctagon, AlertTriangle, Briefcase, ChevronDown, ChevronUp, Home, Layers3, LockIcon, LucideIcon, Search, Settings, ShieldAlert, User, Users, X } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -11,6 +11,7 @@ import { useGetProjectsQuery } from "@/src/state/api";
 
 
 const Sidebar = () => {
+  const [isHydrated, setIsHydrated] = useState(false);
   const [showProjects, setShowProjects] = useState(true);
   const [showPriority, setShowPriority] = useState(true);
 
@@ -20,7 +21,16 @@ const Sidebar = () => {
     (state) => state.global.isSidebarCollapsed
   );
 
-  const sidebarClassNames = `fixed flex flex-col h-full justify-between shadow-xl transition-all duration-300 z-40 dark:bg-black overflow-y-auto bg-white ${
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Prevent hydration issues by not rendering until hydrated
+  if (!isHydrated) {
+    return null;
+  }
+
+  const sidebarClassNames = `fixed flex flex-col h-full justify-between shadow-xl transition-all duration-300 z-40 dark:bg-gray-800 overflow-y-auto bg-white ${
     isSidebarCollapsed ? "w-0 hidden" : "w-64"
   }`;
 
@@ -28,7 +38,7 @@ const Sidebar = () => {
     <div className={sidebarClassNames}>
       {/* Top logo */}
       <div className="flex h-full w-full flex-col justify-start">
-        <div className="z-50 flex min-h-[56px] w-64 items-center justify-between bg-white px-6 pt-3 dark:bg-black">
+        <div className="z-50 flex min-h-[56px] w-64 items-center justify-between bg-white px-6 pt-3 dark:bg-gray-800">
           <div className="text-xl font-bold text-gray-800 dark:text-white">
             EDLIST
           </div>
