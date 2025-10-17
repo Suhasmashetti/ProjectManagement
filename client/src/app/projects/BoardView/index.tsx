@@ -1,5 +1,5 @@
 import { useGetTasksQuery, useUpdateTaskStatusMutation } from "../../../state/api";
-import React, { memo, useCallback, useMemo } from "react";
+import React, { memo, useCallback, useMemo, useState } from "react";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Task as TaskType } from "../../../state/api";
@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import Image from "next/image";
 import Loading from "../../../components/Loading";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import { getEmptyImage, optimisticUpdate, DRAG_THROTTLE_MS } from "../../../utils/dragOptimizations";
 
 type BoardProps = {
   id: string;
@@ -17,6 +18,9 @@ type BoardProps = {
 const taskStatus = ["To Do", "Work In Progress", "Under Review", "Completed"];
 
 const BoardView = memo(({ id, setIsModalNewTaskOpen }: BoardProps) => {
+  // Track optimistically updated tasks for instant UI updates
+  const [optimisticTasks, setOptimisticTasks] = useState<TaskType[] | null>(null);
+  
   const {
     data: tasks,
     isLoading,
@@ -31,22 +35,41 @@ const BoardView = memo(({ id, setIsModalNewTaskOpen }: BoardProps) => {
   );
   const [updateTaskStatus] = useUpdateTaskStatusMutation();
 
-  // Memoize the move task function to prevent re-creation on each render
-  const moveTask = useCallback((taskId: number, toStatus: string) => {
-    updateTaskStatus({ taskId, status: toStatus });
-  }, [updateTaskStatus]);
+  // Use our optimistic tasks or the fetched tasks
+  const displayedTasks = useMemo(() => {
+    return optimisticTasks || tasks;
+  }, [optimisticTasks, tasks]);
+  
+  // Clear optimistic tasks when real data comes in
+  React.useEffect(() => {
+    if (tasks && optimisticTasks) {
+      setOptimisticTasks(null);
+    }
+  }, [tasks]);
 
-  // Memoize tasks grouped by status for better performance
+  // Enhanced moveTask function with optimistic updates
+  const moveTask = useCallback((taskId: number, toStatus: string) => {
+    // Optimistically update the UI immediately
+    if (tasks) {
+      const updatedTasks = optimisticUpdate(tasks, taskId, toStatus);
+      setOptimisticTasks(updatedTasks);
+    }
+    
+    // Then update the backend
+    updateTaskStatus({ taskId, status: toStatus });
+  }, [updateTaskStatus, tasks]);
+
+  // Memoize tasks grouped by status using the optimistic or actual task data
   const tasksByStatus = useMemo(() => {
-    if (!tasks) return {};
-    return tasks.reduce((acc, task) => {
+    if (!displayedTasks) return {};
+    return displayedTasks.reduce((acc, task) => {
       if (!acc[task.status || 'To Do']) {
         acc[task.status || 'To Do'] = [];
       }
       acc[task.status || 'To Do'].push(task);
       return acc;
     }, {} as Record<string, TaskType[]>);
-  }, [tasks]);
+  }, [displayedTasks]);
 
   if (isLoading) return <Loading variant="pulse" text="Loading tasks..." size="md" />;
   if (error) return (
@@ -57,11 +80,22 @@ const BoardView = memo(({ id, setIsModalNewTaskOpen }: BoardProps) => {
     />
   );
 
+  // Import our custom drag layer
+  const CustomDragLayer = React.lazy(() => import('../../../components/CustomDragLayer'));
+  
   return (
     <DndProvider backend={HTML5Backend}>
+      {/* Add custom drag layer for better performance */}
+      <React.Suspense fallback={null}>
+        <CustomDragLayer />
+      </React.Suspense>
+      
       <div 
         className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 xl:grid-cols-4"
-        style={{ contain: 'layout style paint' }} // CSS containment for better performance
+        style={{ 
+          contain: 'layout style paint', // CSS containment for better performance
+          willChange: 'contents' // Hint to browser to optimize this container
+        }}
       >
         {taskStatus.map((status) => (
           <TaskColumn
@@ -92,18 +126,34 @@ const TaskColumn = memo(({
   moveTask,
   setIsModalNewTaskOpen,
 }: TaskColumnProps) => {
-  // Memoize the drop handler to prevent recreation
+  // Track if a task is being dragged over this column
+  const [isHovering, setIsHovering] = useState(false);
+  
+  // Memoize the drop handler to prevent recreation and add immediate feedback
   const handleDrop = useCallback((item: { id: number }) => {
-    moveTask(item.id, status);
+    // Give immediate visual feedback
+    setIsHovering(false);
+    
+    // Use setTimeout with 0ms to push the task mutation to the next event loop tick
+    // This allows the UI to update before the potentially slow API call
+    setTimeout(() => {
+      moveTask(item.id, status);
+    }, 0);
   }, [moveTask, status]);
+  
+  // Optimized hover handling
+  const handleHover = useCallback((isOver: boolean) => {
+    setIsHovering(isOver);
+  }, []);
 
   const [{ isOver }, drop] = useDrop(() => ({
     accept: "task",
     drop: handleDrop,
+    hover: () => handleHover(true),
     collect: (monitor: any) => ({
       isOver: !!monitor.isOver(),
     }),
-  }), [handleDrop]);
+  }), [handleDrop, handleHover]);
 
   // Tasks are already filtered by status from parent component
   const tasksCount = tasks.length;
@@ -170,16 +220,38 @@ type TaskProps = {
 };
 
 const Task = memo(({ task }: TaskProps) => {
+  // Track if the element is being dragged for local state updates
+  const [isBeingDragged, setIsBeingDragged] = useState(false);
+  
   // Memoize drag item to prevent recreation
-  const dragItem = useMemo(() => ({ id: task.id }), [task.id]);
+  const dragItem = useMemo(() => ({ 
+    id: task.id,
+    title: task.title, // Include title for custom preview
+    originalStatus: task.status // Track original status for optimistic updates
+  }), [task.id, task.title, task.status]);
 
-  const [{ isDragging }, drag] = useDrag(() => ({
+  const [{ isDragging }, drag, preview] = useDrag(() => ({
     type: "task",
-    item: dragItem,
+    item: () => {
+      setIsBeingDragged(true); // Update local state immediately
+      return dragItem;
+    },
+    end: () => {
+      setIsBeingDragged(false); // Update when drag ends
+    },
     collect: (monitor: any) => ({
       isDragging: !!monitor.isDragging(),
     }),
+    // Disable default drag preview for better performance
+    previewOptions: {
+      captureDraggingState: true,
+    }
   }), [dragItem]);
+  
+  // Use empty image as drag preview for custom preview handling
+  React.useEffect(() => {
+    preview(getEmptyImage(), { captureDraggingState: true });
+  }, [preview]);
 
   // Memoize heavy computations to prevent recalculation on every render
   const taskTagsSplit = useMemo(() => 
@@ -229,26 +301,20 @@ const Task = memo(({ task }: TaskProps) => {
       ref={(instance) => {
         drag(instance);
       }}
-      className={`mb-4 rounded-md bg-white shadow dark:bg-gray-800 transition-all duration-150 ${
-        isDragging ? "opacity-50 scale-105 rotate-1" : "opacity-100 scale-100 rotate-0"
+      className={`mb-4 rounded-md bg-white shadow dark:bg-gray-800 ${
+        isDragging ? "opacity-40 scale-95" : "opacity-100 scale-100"
       }`}
       style={{
         willChange: 'transform, opacity',
-        transform: isDragging ? 'translateZ(0)' : undefined, // GPU acceleration
+        transform: 'translateZ(0)', // Always use GPU acceleration
+        transition: isDragging ? 'none' : 'opacity 100ms, transform 100ms', // Remove transitions during drag
+        touchAction: 'none', // Prevent scrolling during drag on touch devices
       }}
     >
-      {task.attachments && task.attachments.length > 0 ? (
+      {task.attachments && task.attachments.length > 0 && (
         <Image
-          src={`/${task.id % 10 === 0 ? 'i10' : 'i' + (task.id % 10)}.jpg`}
-          alt={task.attachments[0]?.fileName || 'Task image'}
-          width={400}
-          height={200}
-          className="h-auto w-full rounded-t-md"
-        />
-      ) : (
-        <Image
-          src={`/i${(task.id % 10) + 1}.jpg`}
-          alt="Task image"
+          // src={`https://pm-s3-images.s3.us-east-2.amazonaws.com/${task.attachments[0].fileUrl}`}
+          alt={task.attachments[0].fileName}
           width={400}
           height={200}
           className="h-auto w-full rounded-t-md"
@@ -299,8 +365,8 @@ const Task = memo(({ task }: TaskProps) => {
             {task.assignee && (
               <Image
                 key={task.assignee.userId}
-                src={`/p${(task.assignee.userId || 1) % 13 === 0 ? 13 : (task.assignee.userId || 1) % 13}.jpeg`}
-                alt={task.assignee.username || 'User'}
+                // src={`https://pm-s3-images.s3.us-east-2.amazonaws.com/${task.assignee.profilePictureUrl!}`}
+                alt={task.assignee.username}
                 width={30}
                 height={30}
                 className="h-8 w-8 rounded-full border-2 border-white object-cover dark:border-gray-800"
@@ -309,8 +375,8 @@ const Task = memo(({ task }: TaskProps) => {
             {task.author && (
               <Image
                 key={task.author.userId}
-                src={`/p${(task.author.userId || 1) % 13 === 0 ? 13 : (task.author.userId || 1) % 13}.jpeg`}
-                alt={task.author.username || 'User'}
+                // src={`https://pm-s3-images.s3.us-east-2.amazonaws.com/${task.author.profilePictureUrl!}`}
+                alt={task.author.username}
                 width={30}
                 height={30}
                 className="h-8 w-8 rounded-full border-2 border-white object-cover dark:border-gray-800"
